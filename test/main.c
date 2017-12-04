@@ -24,7 +24,10 @@ static bool opt_real(char ***arg, const char *pre, double *num);
 static int intsort(const void *left, const void *right);
 static int err_t_sort(const void *left, const void *right);
 
-static double chk_conv(double val, const char *str, int exp, bool *cor, bool *opt, bool *best);
+static double chk_conv(double val, const char *str, int exp, bool *cor,
+                       bool *opt, bool *best);
+static float chk_convf(float val, const char *str, int exp, bool *cor,
+                       bool *opt, bool *best);
 
 static void table_add(struct errol_err_t[static 1024], int i, double val);
 static void table_enum(unsigned int ver, bool bld);
@@ -35,10 +38,12 @@ static void table_to_tree(struct errol_err_t *table, int n);
  */
 
 double rndval(double lower, double upper);
+float rndvalf(float lower, float upper);
 void reseed(uint_fast64_t value);
 uint_fast64_t get_seed();
 
 int grisu3_proc(double val, char *buf, bool *suc);
+int grisu3f_proc(float val, char *buf);
 uint32_t grisu_bench(double val, bool *suc);
 
 int dragon4_proc(double val, char *buf);
@@ -47,6 +52,7 @@ uint32_t dragon4_bench(double val, bool *suc);
 bool errolN_check(unsigned int n, double val);
 bool errolNu_check(unsigned int n, double val);
 int errolN_proc(unsigned int n, double val, char *buf, bool *opt);
+int errolNf_proc(int n, float val, char *buf, bool *opt);
 uint32_t errolN_bench(unsigned int n, double val, bool *suc);
 
 /*
@@ -67,7 +73,7 @@ int main(int argc, char **argv)
 {
 	char **arg;
 	bool quiet = false, enum3 = false, enum4 = false, check3 = false, check4 = false;
-	int n, perf = 0, fuzz[5] = { 0, 0, 0, 0, 0 };
+	int n, perf = 0, fuzz[10] = {};
 	double lower = DBL_MIN, upper = DBL_MAX;
 
 	for(arg = argv + 1; *arg != NULL; ) {
@@ -81,6 +87,8 @@ int main(int argc, char **argv)
 			fuzz[3] = n;
 		else if(opt_num(&arg, "fuzz4", &n))
 			fuzz[4] = n;
+		else if(opt_num(&arg, "fuzzf0", &n))
+			fuzz[5] = n;
 		else if(opt_num(&arg, "perf", &n))
 			perf = n;
 		else if(opt_real(&arg, "lower", &lower))
@@ -141,6 +149,60 @@ int main(int argc, char **argv)
 		}
 
 		printf("\x1b[G\x1b[KFuzzing Errol%u done on %u numbers, %u failures (%.3f%%), %u suboptimal (%.3f%%), %u notbest (%.3f%%)\n", n, fuzz[n], nfail, 100.0 * (double)nfail / (double)fuzz[n], subopt, 100.0 * (double)subopt / (double)fuzz[n], notbest, 100.0 * (double)notbest / (double)fuzz[n]);
+	}
+
+	for (; n < 10; n++)
+	{
+		int an = n - 5;
+		int nfail = 0, subopt = 0, notbest = 0;
+
+		if (fuzz[n] == 0)
+			continue;
+
+		for (int i = 0; i < fuzz[n]; i++)
+		{
+			int exp;
+			char str[16];
+			float val, chk;
+			bool cor, opt, best;
+
+			if ((i % 1000) == 0)
+			{
+				printf("\x1b[G\x1b[KFuzzing Errol%uf... "
+				       "%uk/%uk %2.2f%%",
+				       an, i / 1000, fuzz[n] / 1000,
+				       100.0 * (double)i / (double)fuzz[n]);
+				fflush(stdout);
+			}
+
+			val = rndvalf(FLT_MIN, FLT_MAX);
+			exp = errolNf_proc(an, val, str, &opt);
+			chk = chk_convf(val, str, exp, &cor, &opt, &best);
+
+			nfail += (cor ? 0 : 1);
+			subopt += (opt ? 0 : 1);
+			notbest += (best ? 0 : 1);
+
+			if (!best && !quiet)
+			{
+				int grisu3fexp;
+				char grisu3fstr[128];
+
+				grisu3fexp = grisu3f_proc(val, grisu3fstr);
+				fprintf(stderr, "Conversion failed. Expected "
+				                "0.%se%d. Actual 0.%se%d. "
+				                "Read as %.17e.\n",
+				        grisu3fstr, grisu3fexp, str, exp, chk);
+			}
+		}
+
+		printf("\x1b[G\x1b[KFuzzing Errol%uf done on %u numbers, %u "
+		       "failures (%.3f%%), %u suboptimal (%.3f%%), %u notbest "
+		       "(%.3f%%)\n",
+		       an, fuzz[n], nfail,
+		       100.0 * (double)nfail / (double)fuzz[n], subopt,
+		       100.0 * (double)subopt / (double)fuzz[n], notbest,
+		       100.0 * (double)notbest / (double)fuzz[n]);
 	}
 
 	if(perf > 0) {
@@ -418,6 +480,25 @@ static double chk_conv(double val, const char *str, int exp, bool *cor, bool *op
 	*cor = (val == chk);
 	*opt = (*cor && (strlen(str) == strlen(dragon4)));
 	*best = (*opt && (exp == dragon4exp) && !strcmp(str, dragon4));
+
+	return chk;
+}
+
+static float chk_convf(float val, const char *str, int exp, bool *cor,
+                       bool *opt, bool *best)
+{
+	float chk;
+	int grisu3fexp;
+	char grisu3f[16], full[snprintf(NULL, 0, "0.%se%d", str, exp) + 1];
+
+	grisu3fexp = grisu3f_proc(val, grisu3f);
+
+	sprintf(full, "0.%se%d", str, exp);
+	sscanf(full, "%f", &chk);
+
+	*cor = (val == chk);
+	*opt = (*cor && (strlen(str) == strlen(grisu3f)));
+	*best = (*opt && (exp == grisu3fexp) && !strcmp(str, grisu3f));
 
 	return chk;
 }

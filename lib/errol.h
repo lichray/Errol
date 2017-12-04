@@ -26,6 +26,8 @@ int errol3u_dtoa(double val, char *buf);
 int errol4_dtoa(double val, char *buf);
 int errol4u_dtoa(double val, char *buf);
 
+int errol0f_ftoa(float val, char *buf);
+
 int errol_int(double val, char *buf);
 int errol_fixed(double val, char *buf);
 
@@ -44,6 +46,11 @@ typedef union {
 	double d;
 	uint64_t i;
 } errol_bits_t;
+
+typedef union {
+	float d;
+	uint32_t i;
+} errolf_bits_t;
 
 #ifdef __cplusplus
 }

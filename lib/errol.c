@@ -74,13 +74,6 @@ static int inline mismatch10(uint64_t a, uint64_t b);
 static int inline table_lower_bound(uint64_t *table, int n, uint64_t k);
 
 /*
- * inline function instantiations
- */
-
-extern inline char *u32toa(uint32_t value, char *buffer);
-extern inline char *u64toa(uint64_t value, char *buffer);
-
-/*
  * intrinsics
  */
 

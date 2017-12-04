@@ -1,4 +1,5 @@
 #include <double-conversion/fast-dtoa.h>
+#include <double-conversion/bignum-dtoa.h>
 #include <errol.h>
 #include "dragon4.h"
 #include <stdio.h>
@@ -79,6 +80,22 @@ extern "C" double rndval(double lower, double upper)
 
 
 /**
+ * Create a random float value.
+ *   @upper: Minimum floating point value.
+ *   @lower: Maximum floating point value.
+ *   &returns: The random float.
+ */
+
+extern "C" float rndvalf(float lower, float upper)
+{
+	errolf_bits_t a = { lower }, b = { upper };
+	std::uniform_int_distribution<uint32_t> dist(a.i, b.i);
+	errolf_bits_t r = { .i = dist(global_rng()) };
+	return r.d;
+}
+
+
+/**
  * Seed the global random engine.
  *   @value: The seed to use.
  */
@@ -131,6 +148,21 @@ extern "C" int grisu3_proc(double val, char *buf, bool *suc)
 	chk = FastDtoa(val, FAST_DTOA_SHORTEST, 0, buffer, &length, &point);
 	if(suc)
 		*suc = chk;
+
+	return point;
+}
+
+extern "C" int grisu3f_proc(float val, char *buf)
+{
+	bool chk;
+	Vector<char> buffer(buf, 100);
+	int length, point;
+
+	chk = FastDtoa(val, FAST_DTOA_SHORTEST_SINGLE, 0, buffer, &length,
+	               &point);
+	if (!chk)
+		BignumDtoa(val, BIGNUM_DTOA_SHORTEST_SINGLE, 0, buffer,
+		           &length, &point);
 
 	return point;
 }
@@ -267,6 +299,21 @@ extern "C" int errolN_proc(unsigned int n, double val, char *buf, bool *opt)
 
 	return 0;
 }
+
+extern "C" int errolNf_proc(int n, float val, char *buf, bool *opt)
+{
+	*opt = true;
+
+	switch (n)
+	{
+	case 0:
+		return errol0f_ftoa(val, buf);
+	default:
+		assert(false);
+		return 0;
+	}
+}
+
 
 /**
  * Benchmark Errol.
