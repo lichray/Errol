@@ -24,7 +24,7 @@ static bool opt_real(char ***arg, const char *pre, double *num);
 static int intsort(const void *left, const void *right);
 static int err_t_sort(const void *left, const void *right);
 
-static double chk_conv(double val, const char *str, int32_t exp, bool *cor, bool *opt, bool *best);
+static double chk_conv(double val, const char *str, int exp, bool *cor, bool *opt, bool *best);
 
 static void table_add(struct errol_err_t[static 1024], int i, double val);
 static void table_enum(unsigned int ver, bool bld);
@@ -404,10 +404,10 @@ static int err_t_sort(const void *left, const void *right)
  *   &returns: The actual value.
  */
 
-static double chk_conv(double val, const char *str, int32_t exp, bool *cor, bool *opt, bool *best)
+static double chk_conv(double val, const char *str, int exp, bool *cor, bool *opt, bool *best)
 {
 	double chk;
-	int32_t dragon4exp;
+	int dragon4exp;
 	char dragon4[32], full[snprintf(NULL, 0, "0.%se%d", str, exp) + 1];
 
 	dragon4exp = dragon4_proc(val, dragon4);
@@ -522,7 +522,7 @@ static void table_enum(unsigned int ver, bool bld)
 		/* log10(2^{e+1}) - D + 2 */
 		n = floor((e+1.0)*log10(2.0)) - D + 2;
 
-		/* Δ = 2^(e-p-n) 79ϵ = 79 2^{e-2p-n) */
+		/* Δ = 2^(e-p-n) 79纽 = 79 2^{e-2p-n) */
 		exp = e - 2*p - n;
 		mpz_ui_pow_ui(delta, 2, (exp > 0) ? exp : 0);
 		mpz_mul_ui(delta, delta, 179);
